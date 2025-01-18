@@ -1,0 +1,86 @@
+- hosts: all
+  become: yes
+  become_user: root
+  tasks:
+    # Update apt cache
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    # Install Neofetch
+    - name: Install Neofetch
+      apt:
+        name: neofetch
+        state: present
+
+    # Check if user "narokuu" exists
+    - name: Check if user "narokuu" exists
+      command: id -u narokuu
+      register: narokuu_user_check
+      ignore_errors: yes
+
+    # Set target users (root and optionally narokuu)
+    - name: Set target users list
+      set_fact:
+        target_users:
+          - { name: "root", home: "/root" }
+          - { name: "narokuu", home: "/home/narokuu" }
+      when: narokuu_user_check.rc == 0
+
+    - name: Set target user to only root if narokuu is absent
+      set_fact:
+        target_users:
+          - { name: "root", home: "/root" }
+      when: narokuu_user_check.rc != 0
+
+    # Ensure Neofetch runs on startup for each target user
+    - name: Ensure Neofetch runs on startup
+      lineinfile:
+        path: "{{ item.home }}/.bashrc"
+        line: "neofetch"
+        state: present
+        create: yes
+      loop: "{{ target_users }}"
+
+    # Ensure Neofetch config directory exists for each target user
+    - name: Ensure Neofetch config directory exists
+      file:
+        path: "{{ item.home }}/.config/neofetch"
+        state: directory
+        owner: "{{ item.name }}"
+        group: "{{ item.name }}"
+        mode: '0755'
+      loop: "{{ target_users }}"
+
+    # Create or update Neofetch config file for each target user
+    - name: Create or update Neofetch config file
+      copy:
+        dest: "{{ item.home }}/.config/neofetch/config.conf"
+        content: |
+          # Neofetch configuration file
+          # See https://github.com/dylanaraps/neofetch/wiki/Customizing-Info for customization options
+
+          # Default display options
+          print_info() {
+            info title
+            info underline
+            info "OS" distro
+            info "Kernel" kernel
+            info "Uptime" uptime
+            info "Packages" packages
+            info "Shell" shell
+            info "Resolution" resolution
+            info "DE" de
+            info "WM" wm
+            info "Theme" theme
+            info "Icons" icons
+            info "Terminal" term
+            info "CPU" cpu
+            info "Memory" memory
+            info "Disk" disk
+            info "IP Address" ip
+          }
+        owner: "{{ item.name }}"
+        group: "{{ item.name }}"
+        mode: '0644'
+      loop: "{{ target_users }}"
