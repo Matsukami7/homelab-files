@@ -1,9 +1,13 @@
 - hosts: all
   become: yes
-  become_user: root
   tasks:
-    # Upgrade packages
-    - name: upgrade apt packages
+    # Update apt cache
+    - name: Update apt cache
       apt:
-        upgrade: yes
         update_cache: yes
+
+    # Upgrade all packages
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+        state: latest
